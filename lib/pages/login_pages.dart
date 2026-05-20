@@ -13,17 +13,19 @@ class _LoginPagesState extends State<LoginPages> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordComfimationController = TextEditingController();
 
   bool _isLoarding = false;
+  bool _forLogin = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(""),
+        title: Text("ECHO", style: TextStyle(color: Color(0xFFE50914)),),
         backgroundColor: Colors.black,
-        leading: Icon(Icons.arrow_back, color: Colors.white),
+        
       ),
       body: Form(
         key: _formKey,
@@ -77,24 +79,75 @@ class _LoginPagesState extends State<LoginPages> {
                       borderSide: BorderSide(color: Colors.white, width: 1),
                     ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Mot de passe requis";
+                    } else {
+                      return null;
+                    }
+                  },
                 ),
+                SizedBox(height: 20),
+                if (_forLogin)
+                  TextFormField(
+                    controller: _passwordComfimationController,
+                    obscureText: true,
+                    style: TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      // hintText: "Mot de passe",
+                      // hintStyle: TextStyle(color: Colors.white),
+                      labelText: "Confirmer votre Mot de passe",
+                      labelStyle: TextStyle(color: Colors.white),
+                      suffixIcon: Icon(Icons.visibility_off),
+                      suffixIconColor: Colors.white,
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white, width: 2),
+                      ),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white, width: 1),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Mot de passe de confimation requis";
+                      } else if (value != _passwordController.text) {
+                        return "Mot de passe de confimation incorrect";
+                      } else {
+                        return null;
+                      }
+                    },
+                  ),
                 Container(
                   margin: EdgeInsets.only(top: 30),
                   child: ElevatedButton(
                     onPressed: _isLoarding
                         ? null
                         : () async {
-                            setState(() {_isLoarding = true;});
-
+                            setState(() {
+                              _isLoarding = true;
+                            });
+                            //Login
                             if (_formKey.currentState!.validate()) {
                               try {
-                                await Auth().loginWithEmailAndPassword(
-                                  _emailController.text,
-                                  _passwordController.text,
-                                );
-                                setState(() {_isLoarding = false;});
+                                if (_forLogin) {
+                                  await Auth().loginWithEmailAndPassword(
+                                    _emailController.text,
+                                    _passwordController.text,
+                                  );
+                                } else {
+                                  await Auth().createUserWithEmailAndPassword(
+                                    _emailController.text,
+                                    _passwordController.text,
+                                  );
+                                }
+
+                                setState(() {
+                                  _isLoarding = false;
+                                });
                               } on FirebaseAuthException catch (e) {
-                                setState(() {_isLoarding = false;});
+                                setState(() {
+                                  _isLoarding = false;
+                                });
                                 //Message Error
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -108,18 +161,27 @@ class _LoginPagesState extends State<LoginPages> {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFFE50914),
-                      padding: EdgeInsets.only(left: 125, right: 125),
+                      padding: EdgeInsets.only(left: 120, right: 120),
                     ),
-                    child: _isLoarding ? CircularProgressIndicator(): Text(
-                      "Se connecter",
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    child: _isLoarding
+                        ? CircularProgressIndicator()
+                        : Text(
+                            _forLogin ? "Se connecter" : "S'inscrire",
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    _emailController.text = "";
+                    _passwordController.text = "";
+                    _passwordComfimationController.text = "";
+                    setState(() {
+                      _forLogin = !_forLogin;
+                    });
+                  },
                   child: Text(
-                    "Mot de passe oublié ?",
+                    _forLogin ? "Créer un compte" : "J'ai déjà un compte",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),

@@ -22,7 +22,7 @@ Future<void> main() async {
   
     runApp(MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: RedirectionPage()));
+      home: MainApp()));
 }
 
 var kColorScheme = ColorScheme.fromSeed(
@@ -36,7 +36,7 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/',
       builder: (BuildContext context, GoRouterState state) {
-        return const Scaffold();
+        return const RedirectionPage();
       },
       routes: <RouteBase>[
         GoRoute(

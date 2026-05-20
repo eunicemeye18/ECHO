@@ -63,6 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '362069540916',
     projectId: 'echo-4ea97',
     storageBucket: 'echo-4ea97.firebasestorage.app',
+    iosClientId: '362069540916-g3l1m2koo5jv7nals3qmgbk9333vie27.apps.googleusercontent.com',
     iosBundleId: 'com.example.cloneWhatsappBaseCode',
   );
 
@@ -72,6 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '362069540916',
     projectId: 'echo-4ea97',
     storageBucket: 'echo-4ea97.firebasestorage.app',
+    iosClientId: '362069540916-g3l1m2koo5jv7nals3qmgbk9333vie27.apps.googleusercontent.com',
     iosBundleId: 'com.example.cloneWhatsappBaseCode',
   );
 

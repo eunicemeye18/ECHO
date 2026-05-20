@@ -12,7 +12,12 @@
           "package_name": "com.example.clone_whatsapp_base_code"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "362069540916-9hhstneg0thuum64l4lq5jj6s54u5951.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB958C6SXQnbhnyPCyBdYp6QKngFCMyhhI"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "362069540916-9hhstneg0thuum64l4lq5jj6s54u5951.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "362069540916-g3l1m2koo5jv7nals3qmgbk9333vie27.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cloneWhatsappBaseCode"
+              }
+            }
+          ]
         }
       }
     }
