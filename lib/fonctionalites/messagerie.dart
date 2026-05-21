@@ -1,14 +1,46 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
+/// Résultat retourné par l'analyse IA.
+/// Si [rappelCree] est true, [texteExtrait], [motCle] et [typeRappel] sont renseignés.
+class IaAnalyseResult {
+  final bool rappelCree;
+  final String? motCle;
+  final String? texteExtrait;
+  final String? typeRappel; // "promesse" | "rendez-vous"
+  final String? whenText;
+
+  const IaAnalyseResult({
+    required this.rappelCree,
+    this.motCle,
+    this.texteExtrait,
+    this.typeRappel,
+    this.whenText,
+  });
+
+  factory IaAnalyseResult.none() => const IaAnalyseResult(rappelCree: false);
+}
 
 class Messagerie {
   FirebaseFirestore db = FirebaseFirestore.instance;
-  final Dio _dio = Dio();
-  
-  // URL de ton API déployée
-  static const String _apiUrl = "https://unarmored-salvaging-tragedy.ngrok-free.dev/";
 
-  Future<void> sendMessage(
+  // URL du backend déployé sur Render.
+  // Remplacer par l'URL réelle après déploiement.
+  static const String _apiUrl = "https://echo-work-ai.onrender.com";
+
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 8),
+      receiveTimeout: const Duration(seconds: 10),
+      headers: {"Content-Type": "application/json"},
+    ),
+  );
+
+  /// Envoie un message et retourne le résultat de l'analyse IA.
+  /// L'envoi Firestore est immédiat ; l'analyse IA est lancée en parallèle
+  /// et son résultat est retourné pour que l'UI puisse réagir.
+  Future<IaAnalyseResult> sendMessage(
     String currentUid,
     String receiverUid,
     String message, {
@@ -18,16 +50,17 @@ class Messagerie {
     String? fileSize,
     bool isGroup = false,
   }) async {
+    // ── 1. Calculer le chatId ──────────────────────────────────────────────
     String chatId;
     if (isGroup) {
       chatId = receiverUid;
     } else {
-      List ids = [currentUid, receiverUid];
-      ids.sort();
+      final ids = [currentUid, receiverUid]..sort();
       chatId = ids.join("_");
     }
 
-    Map<String, dynamic> messageData = {
+    // ── 2. Construire le payload du message ───────────────────────────────
+    final Map<String, dynamic> messageData = {
       "senderUid": currentUid,
       "receiverUid": receiverUid,
       "message": message,
@@ -35,77 +68,100 @@ class Messagerie {
       "timestamp": Timestamp.now(),
       "type": type,
     };
-
     if (fileUrl != null) messageData["fileUrl"] = fileUrl;
     if (fileName != null) messageData["fileName"] = fileName;
     if (fileSize != null) messageData["fileSize"] = fileSize;
 
-    // 1. Envoyer le message dans Firestore
-    await db.collection("Chats").doc(chatId).collection(chatId).add(messageData);
+    // ── 3. Sauvegarder dans Firestore (prioritaire, non bloqué par l'IA) ──
+    await db
+        .collection("Chats")
+        .doc(chatId)
+        .collection(chatId)
+        .add(messageData);
 
-    // 2. Mettre à jour le dernier message dans le groupe si applicable
+    // ── 4. Mettre à jour le lastMessage du groupe si applicable ───────────
     if (isGroup) {
-      try {
-        // Obtenir le nom d'affichage de l'auteur
-        final userDoc = await db.collection("users").doc(currentUid).get();
-        final String authorName = userDoc.exists 
-            ? (userDoc.data()?["name"] ?? userDoc.data()?["email"]?.split('@')[0] ?? "Quelqu'un")
-            : "Quelqu'un";
-            
-        String displayMsg = message;
-        if (type == "image") {
-          displayMsg = "📷 Photo";
-        } else if (type == "file") {
-          displayMsg = "📄 Fichier: $fileName";
-        }
-
-        await db.collection("groups").doc(chatId).update({
-          "lastMessage": "$authorName: $displayMsg",
-          "lastMessageTime": Timestamp.now(),
-        });
-      } catch (e) {
-        print("❌ Erreur lors de la mise à jour du groupe: $e");
-      }
+      _updateGroupLastMessage(currentUid, chatId, message, type, fileName);
     }
 
-    // 3. Analyser le message avec l'IA
-    if (type == "text" && !isGroup) {
-      try {
-        final response = await _dio.post(
-          "$_apiUrl/analyser",
-          data: {
-            "message": message,
-            "auteur": currentUid,
-            "conversation_id": chatId,
-          },
-        );
+    // ── 5. Analyse IA (uniquement messages texte 1-to-1) ──────────────────
+    if (type != "text" || isGroup) return IaAnalyseResult.none();
 
-        final resultat = response.data;
-        print("🤖 IA: ${resultat}");
+    return _analyserAvecIA(message, currentUid, chatId);
+  }
 
-        // Si promesse détectée → sauvegarder dans Firestore
-        if (resultat["rappel_cree"] == true) {
-          await db.collection("Rappels").add({
-            "message": message,
-            "auteur": currentUid,
-            "chatId": chatId,
-            "mot_cle": resultat["mot_cle"] ?? "Engagement",
-            "timestamp": Timestamp.now(),
-            "statut": "actif",
-            "type": "promesse",
-            "location": "N/A",
-            "whenText": "Détecté par l'IA",
-            "dateDetail": "Détecté par l'IA",
-            "partnerName": "Contact",
-            "partnerUid": receiverUid,
-            "sourceText": "Discussion",
-          });
+  /// Appel HTTP vers le backend FastAPI — non bloquant pour l'UX.
+  Future<IaAnalyseResult> _analyserAvecIA(
+    String message,
+    String auteur,
+    String conversationId,
+  ) async {
+    try {
+      final response = await _dio.post(
+        "$_apiUrl/analyser",
+        data: {
+          "message": message,
+          "auteur": auteur,
+          "conversation_id": conversationId,
+        },
+      );
 
-          print("✅ Promesse détectée et sauvegardée !");
-        }
-      } catch (e) {
-        print("❌ Erreur IA: $e");
+      if (response.statusCode != 200 || response.data == null) {
+        return IaAnalyseResult.none();
       }
+
+      final data = response.data as Map<String, dynamic>;
+      final bool rappelCree = data["rappel_cree"] == true;
+
+      debugPrint("🤖 IA résultat: $data");
+
+      if (!rappelCree) return IaAnalyseResult.none();
+
+      return IaAnalyseResult(
+        rappelCree: true,
+        motCle: data["mot_cle"] as String?,
+        texteExtrait: data["texte_extrait"] as String?,
+        typeRappel: data["type_rappel"] as String?,
+        whenText: data["when_text"] as String?,
+      );
+    } on DioException catch (e) {
+      debugPrint("❌ Erreur IA (réseau): ${e.message}");
+      return IaAnalyseResult.none();
+    } catch (e) {
+      debugPrint("❌ Erreur IA: $e");
+      return IaAnalyseResult.none();
+    }
+  }
+
+  /// Met à jour le dernier message affiché dans la liste des groupes.
+  Future<void> _updateGroupLastMessage(
+    String currentUid,
+    String chatId,
+    String message,
+    String type,
+    String? fileName,
+  ) async {
+    try {
+      final userDoc = await db.collection("users").doc(currentUid).get();
+      final String authorName = userDoc.exists
+          ? (userDoc.data()?["name"] ??
+                userDoc.data()?["email"]?.split('@')[0] ??
+                "Quelqu'un")
+          : "Quelqu'un";
+
+      String displayMsg = message;
+      if (type == "image") {
+        displayMsg = "📷 Photo";
+      } else if (type == "file") {
+        displayMsg = "📄 Fichier: $fileName";
+      }
+
+      await db.collection("groups").doc(chatId).update({
+        "lastMessage": "$authorName: $displayMsg",
+        "lastMessageTime": Timestamp.now(),
+      });
+    } catch (e) {
+      debugPrint("❌ Erreur mise à jour groupe: $e");
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:echo_work/fonctionalites/messagerie.dart';
 import 'package:echo_work/services/firebase_auth/auth.dart';
+import 'package:echo_work/widgets/nouveau_rappel_sheet.dart';
 import 'package:flutter/material.dart';
 
 class Discussions extends StatefulWidget {
@@ -31,16 +32,12 @@ class _DiscussionsState extends State<Discussions> {
 
   // chatId = les deux uids triés et joints par "_"
   String get chatId {
-    List ids = [Auth().currentUser!.uid, widget.uid];
-    ids.sort();
-    String id = ids.join("_");
-    print("🔑 chatId calculé: $id");
-    return id;
+    final ids = [Auth().currentUser!.uid, widget.uid]..sort();
+    return ids.join("_");
   }
 
   // Stream qui écoute en temps réel les messages du chat
   Stream<QuerySnapshot> get messagesStream {
-    print("🎧 Abonnement au stream pour chatId: $chatId");
     return FirebaseFirestore.instance
         .collection("Chats")
         .doc(chatId)
@@ -66,19 +63,24 @@ class _DiscussionsState extends State<Discussions> {
   Widget build(BuildContext context) {
     final currentUid = Auth().currentUser!.uid;
     final String partnerName = widget.email.split('@')[0];
-    final String partnerInitials = widget.initials ??
+    final String partnerInitials =
+        widget.initials ??
         (partnerName.isNotEmpty ? partnerName[0].toUpperCase() : "U");
     final Color partnerColor = widget.avatarColor ?? const Color(0xFFE50914);
 
     return Scaffold(
       backgroundColor: Colors.black,
-      
+
       // ─── PREMIUM CUSTOM APP BAR ───────────────────────────
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         titleSpacing: 0,
@@ -113,7 +115,11 @@ class _DiscussionsState extends State<Discussions> {
                   const SizedBox(height: 2),
                   const Row(
                     children: [
-                      Icon(Icons.fiber_manual_record, color: Colors.green, size: 8),
+                      Icon(
+                        Icons.fiber_manual_record,
+                        color: Colors.green,
+                        size: 8,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         "En ligne",
@@ -128,18 +134,30 @@ class _DiscussionsState extends State<Discussions> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
+            icon: const Icon(
+              Icons.videocam_outlined,
+              color: Colors.white,
+              size: 22,
+            ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Appels vidéo indisponibles en mode démo")),
+                const SnackBar(
+                  content: Text("Appels vidéo indisponibles en mode démo"),
+                ),
               );
             },
           ),
           IconButton(
-            icon: const Icon(Icons.phone_outlined, color: Colors.white, size: 22),
+            icon: const Icon(
+              Icons.phone_outlined,
+              color: Colors.white,
+              size: 22,
+            ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Appels vocaux indisponibles en mode démo")),
+                const SnackBar(
+                  content: Text("Appels vocaux indisponibles en mode démo"),
+                ),
               );
             },
           ),
@@ -171,9 +189,7 @@ class _DiscussionsState extends State<Discussions> {
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFE50914),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFFE50914)),
                   );
                 }
 
@@ -191,7 +207,9 @@ class _DiscussionsState extends State<Discussions> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF0E0E0E),
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF1E1E1E)),
+                              border: Border.all(
+                                color: const Color(0xFF1E1E1E),
+                              ),
                             ),
                             child: const Icon(
                               Icons.chat_bubble_outline,
@@ -229,7 +247,10 @@ class _DiscussionsState extends State<Discussions> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
@@ -239,7 +260,8 @@ class _DiscussionsState extends State<Discussions> {
                     String timeText = "";
                     if (data["timestamp"] != null) {
                       try {
-                        final DateTime date = (data["timestamp"] as Timestamp).toDate();
+                        final DateTime date = (data["timestamp"] as Timestamp)
+                            .toDate();
                         timeText =
                             "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
                       } catch (_) {
@@ -250,7 +272,9 @@ class _DiscussionsState extends State<Discussions> {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           constraints: BoxConstraints(
                             maxWidth: MediaQuery.of(context).size.width * 0.75,
@@ -260,7 +284,9 @@ class _DiscussionsState extends State<Discussions> {
                             vertical: 11,
                           ),
                           decoration: BoxDecoration(
-                            color: isMe ? const Color(0xFFE50914) : const Color(0xFF1E1E1E),
+                            color: isMe
+                                ? const Color(0xFFE50914)
+                                : const Color(0xFF1E1E1E),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(20),
                               topRight: const Radius.circular(20),
@@ -287,7 +313,9 @@ class _DiscussionsState extends State<Discussions> {
                                   Text(
                                     timeText,
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.5),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       fontSize: 10,
                                     ),
                                   ),
@@ -315,14 +343,21 @@ class _DiscussionsState extends State<Discussions> {
           // ─── CHAMP DE SAISIE PREMIUM (PILL STYLE) ───────────────────────────
           Container(
             color: Colors.black,
-            padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 20),
+            padding: const EdgeInsets.only(
+              left: 12,
+              right: 12,
+              top: 8,
+              bottom: 20,
+            ),
             child: Row(
               children: [
                 // Bouton Pièce Jointe (+)
                 GestureDetector(
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Ajout de fichiers bientôt disponible")),
+                      const SnackBar(
+                        content: Text("Ajout de fichiers bientôt disponible"),
+                      ),
                     );
                   },
                   child: Container(
@@ -332,11 +367,7 @@ class _DiscussionsState extends State<Discussions> {
                       shape: BoxShape.circle,
                       color: Color(0xFF1E1E1E),
                     ),
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 20),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -348,7 +379,10 @@ class _DiscussionsState extends State<Discussions> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF0E0E0E),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFF1E1E1E), width: 1.2),
+                      border: Border.all(
+                        color: const Color(0xFF1E1E1E),
+                        width: 1.2,
+                      ),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: TextField(
@@ -357,9 +391,14 @@ class _DiscussionsState extends State<Discussions> {
                       maxLines: 1,
                       decoration: InputDecoration(
                         hintText: "Nouveau Message...",
-                        hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        hintStyle: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ),
@@ -368,12 +407,40 @@ class _DiscussionsState extends State<Discussions> {
 
                 // Bouton Envoyer
                 GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     final text = messageController.text.trim();
-                    if (text.isNotEmpty) {
-                      Messagerie().sendMessage(currentUid, widget.uid, text);
-                      messageController.clear();
-                      _scrollToBottom();
+                    if (text.isEmpty) return;
+
+                    // Vider le champ et scroller immédiatement — UX fluide
+                    messageController.clear();
+                    _scrollToBottom();
+
+                    // Envoyer + analyser en parallèle
+                    final result = await Messagerie().sendMessage(
+                      currentUid,
+                      widget.uid,
+                      text,
+                    );
+
+                    // Si l'IA détecte une promesse/RDV → afficher le sheet
+                    if (result.rappelCree && mounted) {
+                      final partnerName = widget.email.contains('@')
+                          ? widget.email.split('@')[0]
+                          : widget.email;
+
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => NouveauRappelSheet(
+                          messageText: result.texteExtrait ?? text,
+                          partnerName: partnerName,
+                          partnerUid: widget.uid,
+                          motCle: result.motCle,
+                          typeRappel: result.typeRappel,
+                          whenText: result.whenText,
+                        ),
+                      );
                     }
                   },
                   child: Container(
