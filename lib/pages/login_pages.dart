@@ -1,9 +1,11 @@
 import 'package:echo_work/services/firebase_auth/auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginPages extends StatefulWidget {
   const LoginPages({super.key});
@@ -539,10 +541,147 @@ class _LoginPagesState extends State<LoginPages> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // --- TÉLÉCHARGEMENT APPLICATION MOBILE (Web uniquement) ---
+                if (kIsWeb) ...[
+                  const SizedBox(height: 8),
+                  _MobileDownloadBanner(),
+                  const SizedBox(height: 16),
+                ],
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── BANDEAU TÉLÉCHARGEMENT APK ──────────────────────────────────────────────
+class _MobileDownloadBanner extends StatefulWidget {
+  @override
+  State<_MobileDownloadBanner> createState() => _MobileDownloadBannerState();
+}
+
+class _MobileDownloadBannerState extends State<_MobileDownloadBanner> {
+  bool _isDownloading = false;
+
+  static const String _apkUrl =
+      'https://github.com/eunicemeye18/ECHO/releases/download/latest/app-release.apk';
+
+  Future<void> _downloadApk() async {
+    final uri = Uri.parse(_apkUrl);
+    setState(() => _isDownloading = true);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Impossible d'ouvrir le lien de téléchargement"),
+              backgroundColor: Color(0xFFE50914),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Download error: $e");
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E0E0E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1E1E1E), width: 1),
+      ),
+      child: Row(
+        children: [
+          // Icône Android
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: const Color(0x1AE50914),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.android,
+              color: Color(0xFFE50914),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Texte
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Application Android",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  "Téléchargez ECHO WORK sur votre mobile",
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Bouton télécharger
+          GestureDetector(
+            onTap: _isDownloading ? null : _downloadApk,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE50914),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: _isDownloading
+                  ? const SizedBox(
+                      height: 14,
+                      width: 14,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.download_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          "Télécharger",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
