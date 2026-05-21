@@ -49091,7 +49091,7 @@ h=A.a9(["message",a,"auteur",a0,"conversation_id",a1],h,h)
 g=A.b_7()
 g.a="POST"
 s=7
-return A.t(n.b.MG("https://echo-work-ai.onrender.com/analyser",null,h,null,null,g,null,t.z),$async$yo)
+return A.t(n.b.MG("https://echo-work-ai.vercel.app/analyser",null,h,null,null,g,null,t.z),$async$yo)
 case 7:m=a3
 if(m.c!==200||m.a==null){q=B.jb
 s=1

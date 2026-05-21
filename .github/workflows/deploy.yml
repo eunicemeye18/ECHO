@@ -108,26 +108,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ─── DEPLOY BACKEND (Render via Deploy Hook) ─────────────────────────────────
+  # ─── DEPLOY AI BACKEND (Vercel) ──────────────────────────────────────────────
   deploy-backend:
-    name: Deploy AI Backend
+    name: Deploy AI Backend to Vercel
     runs-on: ubuntu-latest
-    # Ne tourne que si le backend a changé OU si c'est un déclenchement manuel
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJson(github.event.commits.*.modified), 'backend/') ||
-      contains(toJson(github.event.commits.*.added), 'backend/')
 
     steps:
-      - name: Trigger Render Deploy Hook
-        # RENDER_DEPLOY_HOOK_URL doit être ajouté dans GitHub Secrets
-        # Settings → Secrets → RENDER_DEPLOY_HOOK_URL
-        # Valeur : l'URL du deploy hook Render (ex: https://api.render.com/deploy/srv-xxx?key=yyy)
-        run: |
-          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
-            curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-            echo "✅ Render deploy triggered"
-          else
-            echo "⚠️  RENDER_DEPLOY_HOOK_URL not set — skipping backend deploy"
-            echo "    Add it in: GitHub repo → Settings → Secrets → RENDER_DEPLOY_HOOK_URL"
-          fi
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: "--prod"
+        # Si les secrets Vercel ne sont pas configurés, ce job échoue silencieusement
+        continue-on-error: true

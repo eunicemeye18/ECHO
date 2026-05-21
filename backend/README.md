@@ -1,88 +1,64 @@
 # ECHO WORK AI Backend
 
-API FastAPI qui analyse les messages de l'app ECHO WORK pour détecter automatiquement les promesses et rendez-vous.
-
-## Stack
-
-- **FastAPI** + **Uvicorn**
-- **Groq** (LLaMA 3.1 8B Instant) — gratuit, ~200ms de latence
-- Déployé sur **Render.com** (free tier)
+API FastAPI déployée sur **Vercel** (serverless, gratuit, URL fixe).
+LLM : **Google Gemini 2.0 Flash** (gratuit, pas de carte bancaire).
 
 ---
 
-## Déploiement (une seule fois, ~5 minutes)
+## Déploiement (5 minutes)
 
-### 1. Clé API Groq (gratuite)
+### 1. Clé API Gemini (gratuite, sans carte bancaire)
 
-1. Aller sur [console.groq.com](https://console.groq.com)
-2. Créer un compte (gratuit, pas de carte bancaire)
-3. **API Keys** → **Create API Key** → copier la clé
+1. Aller sur **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)**
+2. Se connecter avec un compte Google
+3. Cliquer **"Create API key"** → copier la clé
 
-### 2. Déployer sur Render.com
+### 2. Déployer sur Vercel
 
-1. Aller sur [render.com](https://render.com) → **New Web Service**
-2. Connecter le repo GitHub `eunicemeye18/ECHO`
-3. Configurer :
-   - **Root Directory** : `backend`
-   - **Build Command** : `pip install -r requirements.txt`
-   - **Start Command** : `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. **Environment Variables** → ajouter :
-   - `GROQ_API_KEY` = (ta clé Groq)
-5. Cliquer **Deploy**
-6. Copier l'URL générée (ex: `https://echo-work-ai-xxxx.onrender.com`)
+1. Aller sur **[vercel.com](https://vercel.com)** → **"Add New Project"**
+2. Importer le repo GitHub `eunicemeye18/ECHO`
+3. **Ne pas changer** le Root Directory (laisser `/`)
+4. Dans **"Environment Variables"** → ajouter :
+   - `GEMINI_API_KEY` = (ta clé Gemini)
+5. Cliquer **"Deploy"**
+6. Copier l'URL générée (ex: `https://echo-xxxx.vercel.app`)
 
 ### 3. Mettre à jour l'URL dans Flutter
 
-Dans `lib/fonctionalites/messagerie.dart`, remplacer :
+Dans `lib/fonctionalites/messagerie.dart` :
 ```dart
-static const String _apiUrl = "https://echo-work-ai.onrender.com";
+static const String _apiUrl = "https://echo-xxxx.vercel.app";
 ```
-par l'URL réelle de ton service Render.
 
 ### 4. Activer le redéploiement automatique via GitHub Actions
 
-1. Dans Render : **Settings** → **Deploy Hook** → copier l'URL
-2. Dans GitHub : **Settings** → **Secrets and variables** → **Actions** → **New secret**
-   - Nom : `RENDER_DEPLOY_HOOK_URL`
-   - Valeur : l'URL du deploy hook Render
-
-Désormais, chaque push sur `main` qui modifie `backend/` redéploie automatiquement le backend.
+1. Dans Vercel : **Settings → Tokens** → créer un token
+2. Dans GitHub : **Settings → Secrets → Actions** → ajouter :
+   - `VERCEL_TOKEN` = token Vercel
+   - `VERCEL_ORG_ID` = visible dans Vercel Settings → General
+   - `VERCEL_PROJECT_ID` = visible dans le projet Vercel → Settings
 
 ---
 
-## Test local
+## Test de l'API
 
 ```bash
-cd backend
-pip install -r requirements.txt
-cp .env.example .env   # puis remplir GROQ_API_KEY
-uvicorn main:app --reload
-```
+curl https://echo-xxxx.vercel.app/health
+# → {"status":"healthy","gemini_ready":true}
 
-Tester :
-```bash
-curl -X POST http://localhost:8000/analyser \
+curl -X POST https://echo-xxxx.vercel.app/analyser \
   -H "Content-Type: application/json" \
-  -d '{"message": "Je t envoie le rapport demain", "auteur": "uid123", "conversation_id": "chat_abc"}'
-```
-
-Réponse attendue :
-```json
-{
-  "rappel_cree": true,
-  "mot_cle": "Rapport",
-  "texte_extrait": "Envoyer le rapport demain",
-  "type_rappel": "promesse",
-  "when_text": "Demain"
-}
+  -d '{"message":"Je t envoie le rapport demain","auteur":"uid123","conversation_id":"chat_abc"}'
+# → {"rappel_cree":true,"mot_cle":"Rapport","texte_extrait":"Envoyer le rapport demain","type_rappel":"promesse","when_text":"Demain"}
 ```
 
 ---
 
-## Endpoints
+## Structure
 
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| GET | `/` | Statut de l'API |
-| GET | `/health` | Health check |
-| POST | `/analyser` | Analyser un message |
+```
+api/
+  index.py          ← FastAPI app (point d'entrée Vercel)
+  requirements.txt  ← dépendances Python
+vercel.json         ← config déploiement Vercel
+```

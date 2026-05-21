@@ -24,10 +24,10 @@ class IaAnalyseResult {
 class Messagerie {
   FirebaseFirestore db = FirebaseFirestore.instance;
 
-  /// URL du backend FastAPI déployé sur Render.
-  /// ⚠️  Remplacer par l'URL réelle après déploiement Render.
-  /// Format : https://<nom-service>.onrender.com
-  static const String _apiUrl = "https://echo-work-ai.onrender.com";
+  /// URL du backend FastAPI déployé sur Vercel.
+  /// Après déploiement, remplacer par l'URL réelle.
+  /// Ex: "https://echo-xxxx.vercel.app"
+  static const String _apiUrl = "https://echo-work-ai.vercel.app";
 
   final Dio _dio = Dio(
     BaseOptions(
