@@ -42,7 +42,7 @@ class _LoginPagesState extends State<LoginPages> {
           _passwordController.text.trim(),
         );
       }
-      
+
       if (mounted) {
         context.go('/home');
       }
@@ -71,21 +71,25 @@ class _LoginPagesState extends State<LoginPages> {
       _isLoading = true;
     });
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn.instance.authenticate();
+      final GoogleSignInAccount? googleUser = await GoogleSignIn.instance
+          .authenticate();
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
       String? accessToken;
       try {
         final authClient = GoogleSignIn.instance.authorizationClient;
-        final authorizedUser = await authClient.authorizeScopes(['email', 'profile']);
+        final authorizedUser = await authClient.authorizeScopes([
+          'email',
+          'profile',
+        ]);
         accessToken = authorizedUser.accessToken;
       } catch (e) {
-        print("Erreur d'autorisation scopes Google: $e");
+        debugPrint("Erreur d'autorisation scopes Google: $e");
       }
 
       final AuthCredential credential = GoogleAuthProvider.credential(
@@ -93,7 +97,8 @@ class _LoginPagesState extends State<LoginPages> {
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
       final uid = userCredential.user?.uid;
       if (uid != null) {
         await FirebaseFirestore.instance.collection("users").doc(uid).set({
@@ -103,7 +108,7 @@ class _LoginPagesState extends State<LoginPages> {
       }
       if (mounted) context.go('/home');
     } catch (e) {
-      print("Google SignIn exception (using demo account fallback): $e");
+      debugPrint("Google SignIn exception (using demo account fallback): $e");
       _useDemoFallback("Google");
     }
   }
@@ -123,17 +128,18 @@ class _LoginPagesState extends State<LoginPages> {
       const String password = "demopassword123";
 
       try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
-      } catch (_) {
-        UserCredential cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: password,
         );
+      } catch (_) {
+        UserCredential cred = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
         if (cred.user?.uid != null) {
-          await FirebaseFirestore.instance.collection("users").doc(cred.user!.uid).set({
-            "email": email,
-            "uid": cred.user!.uid,
-          });
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(cred.user!.uid)
+              .set({"email": email, "uid": cred.user!.uid});
         }
       }
       if (mounted) {
@@ -188,7 +194,7 @@ class _LoginPagesState extends State<LoginPages> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Titre
                 Text(
                   _forLogin ? "Bon retour 👋" : "Créer un compte 👋",
@@ -200,16 +206,13 @@ class _LoginPagesState extends State<LoginPages> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Sous-titre
                 Text(
-                  _forLogin 
-                      ? "Connectez-vous à votre espace ECHO WORK" 
+                  _forLogin
+                      ? "Connectez-vous à votre espace ECHO WORK"
                       : "Inscrivez-vous pour rejoindre l'espace ECHO WORK",
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
                 ),
                 const SizedBox(height: 32),
 
@@ -233,13 +236,22 @@ class _LoginPagesState extends State<LoginPages> {
                     hintStyle: TextStyle(color: Colors.grey[700]),
                     filled: true,
                     fillColor: const Color(0xFF0E0E0E),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                     focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE50914), width: 1.5),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFE50914),
+                        width: 1.5,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFF1E1E1E), width: 1.0),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF1E1E1E),
+                        width: 1.0,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     border: OutlineInputBorder(
@@ -250,7 +262,9 @@ class _LoginPagesState extends State<LoginPages> {
                     if (value == null || value.trim().isEmpty) {
                       return "L'adresse email est requise";
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value.trim())) {
                       return "Veuillez entrer un email valide";
                     }
                     return null;
@@ -275,7 +289,11 @@ class _LoginPagesState extends State<LoginPages> {
                       GestureDetector(
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Fonctionnalité de récupération à venir")),
+                            const SnackBar(
+                              content: Text(
+                                "Fonctionnalité de récupération à venir",
+                              ),
+                            ),
                           );
                         },
                         child: const Text(
@@ -299,13 +317,22 @@ class _LoginPagesState extends State<LoginPages> {
                     hintStyle: TextStyle(color: Colors.grey[700]),
                     filled: true,
                     fillColor: const Color(0xFF0E0E0E),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                     focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFFE50914), width: 1.5),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFE50914),
+                        width: 1.5,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFF1E1E1E), width: 1.0),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF1E1E1E),
+                        width: 1.0,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     border: OutlineInputBorder(
@@ -345,13 +372,22 @@ class _LoginPagesState extends State<LoginPages> {
                       hintStyle: TextStyle(color: Colors.grey[700]),
                       filled: true,
                       fillColor: const Color(0xFF0E0E0E),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Color(0xFFE50914), width: 1.5),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFE50914),
+                          width: 1.5,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Color(0xFF1E1E1E), width: 1.0),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF1E1E1E),
+                          width: 1.0,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       border: OutlineInputBorder(
@@ -396,9 +432,9 @@ class _LoginPagesState extends State<LoginPages> {
                           ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // --- DIVIDER ---
                 Row(
                   children: [
@@ -413,7 +449,7 @@ class _LoginPagesState extends State<LoginPages> {
                     Expanded(child: Divider(color: Colors.grey[900])),
                   ],
                 ),
-                
+
                 const SizedBox(height: 24),
 
                 // --- BOUTONS SOCIAUX ---
@@ -433,7 +469,10 @@ class _LoginPagesState extends State<LoginPages> {
                           ),
                           child: const Text(
                             "Google",
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -453,14 +492,17 @@ class _LoginPagesState extends State<LoginPages> {
                           ),
                           child: const Text(
                             "Apple",
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 32),
 
                 // --- CHANGEMENT DE MODE (CONNEXION / INSCRIPTION) ---
@@ -477,13 +519,15 @@ class _LoginPagesState extends State<LoginPages> {
                     },
                     child: RichText(
                       text: TextSpan(
-                        text: _forLogin 
-                            ? "Pas encore de compte ? " 
+                        text: _forLogin
+                            ? "Pas encore de compte ? "
                             : "Déjà un compte ? ",
                         style: TextStyle(color: Colors.grey[500], fontSize: 14),
                         children: [
                           TextSpan(
-                            text: _forLogin ? "Créer un compte" : "Se connecter",
+                            text: _forLogin
+                                ? "Créer un compte"
+                                : "Se connecter",
                             style: const TextStyle(
                               color: Color(0xFFE50914),
                               fontWeight: FontWeight.bold,
@@ -503,4 +547,3 @@ class _LoginPagesState extends State<LoginPages> {
     );
   }
 }
-

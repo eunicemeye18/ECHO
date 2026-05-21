@@ -5,6 +5,7 @@ import 'package:echo_work/pages/redirection_page.dart';
 import 'package:echo_work/pages/shell_page.dart';
 import 'package:echo_work/repositories/api_repository/auth_repository.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -14,20 +15,28 @@ import 'package:url_strategy/url_strategy.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+// Web OAuth client ID (type 3 — Web application)
+const String _googleWebClientId =
+    '362069540916-9hhstneg0thuum64l4lq5jj6s54u5951.apps.googleusercontent.com';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   try {
-    await GoogleSignIn.instance.initialize();
+    if (kIsWeb) {
+      await GoogleSignIn.instance.initialize(clientId: _googleWebClientId);
+    } else {
+      await GoogleSignIn.instance.initialize();
+    }
   } catch (e) {
-    print("Google Sign In initialization failed: $e");
+    debugPrint("Google Sign In initialization failed: $e");
   }
   await initializeDateFormatting('fr_FR', null);
   setPathUrlStrategy();
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  }
+
   runApp(const MainApp());
 }
 
@@ -129,4 +138,3 @@ class _MainAppState extends State<MainApp> {
     );
   }
 }
-
