@@ -1,4 +1,4 @@
-import 'package:clone_whatsapp_base_code/services/firebase_auth/auth.dart';
+import 'package:echo_work/services/firebase_auth/auth.dart';
 
 class AuthRepository {
 

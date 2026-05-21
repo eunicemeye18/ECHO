@@ -1,7 +1,9 @@
-import 'package:clone_whatsapp_base_code/cubits/login/login_cubit.dart';
-import 'package:clone_whatsapp_base_code/firebase_options.dart';
-import 'package:clone_whatsapp_base_code/pages/redirection_page.dart';
-import 'package:clone_whatsapp_base_code/repositories/api_repository/auth_repository.dart';
+import 'package:echo_work/cubits/login/login_cubit.dart';
+import 'package:echo_work/firebase_options.dart';
+import 'package:echo_work/pages/login_pages.dart';
+import 'package:echo_work/pages/redirection_page.dart';
+import 'package:echo_work/pages/shell_page.dart';
+import 'package:echo_work/repositories/api_repository/auth_repository.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,42 +12,53 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  try {
+    await GoogleSignIn.instance.initialize();
+  } catch (e) {
+    print("Google Sign In initialization failed: $e");
+  }
   await initializeDateFormatting('fr_FR', null);
   setPathUrlStrategy();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   
-    runApp(MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: MainApp()));
+  runApp(const MainApp());
 }
 
 var kColorScheme = ColorScheme.fromSeed(
-  seedColor: Color.fromARGB(255, 180, 34, 63),
-  secondary: Color.fromARGB(255, 180, 34, 63),
-  primary: Color.fromARGB(255, 180, 34, 63),
+  brightness: Brightness.dark,
+  seedColor: const Color(0xFFE50914),
+  secondary: const Color(0xFFE50914),
+  primary: const Color(0xFFE50914),
+  surface: Colors.black,
 );
 
 final GoRouter router = GoRouter(
+  initialLocation: '/',
   routes: <RouteBase>[
     GoRoute(
       path: '/',
       builder: (BuildContext context, GoRouterState state) {
         return const RedirectionPage();
       },
-      routes: <RouteBase>[
-        GoRoute(
-          path: '/sign_in',
-          builder: (BuildContext context, GoRouterState state) {
-            return const Scaffold();
-          },
-        ),
-      ],
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (BuildContext context, GoRouterState state) {
+        return const LoginPages();
+      },
+    ),
+    GoRoute(
+      path: '/home',
+      builder: (BuildContext context, GoRouterState state) {
+        return const ShellPage();
+      },
     ),
   ],
 );
@@ -69,39 +82,43 @@ class _MainAppState extends State<MainApp> {
           ),
         ],
         child: MaterialApp.router(
-          themeMode: ThemeMode.light,
-          theme: ThemeData().copyWith(
-            appBarTheme: const AppBarTheme(backgroundColor: Color(0xFFFCFCFC)),
-            scaffoldBackgroundColor: const Color(0xFFFCFCFC),
+          themeMode: ThemeMode.dark,
+          theme: ThemeData.dark().copyWith(
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.black,
+              elevation: 0,
+              iconTheme: IconThemeData(color: Colors.white),
+            ),
+            scaffoldBackgroundColor: Colors.black,
             colorScheme: kColorScheme,
             textTheme: const TextTheme().copyWith(
               displayLarge: GoogleFonts.questrial(
                 fontSize: 19,
-                color: Colors.black,
+                color: Colors.white,
               ),
               labelLarge: GoogleFonts.questrial(
                 fontSize: 20,
-                color: Colors.black,
+                color: Colors.white,
               ),
               displayMedium: GoogleFonts.questrial(
                 fontSize: 15,
-                color: Colors.black,
+                color: Colors.white,
               ),
               labelSmall: GoogleFonts.questrial(
                 fontSize: 13,
-                color: Colors.black,
+                color: Colors.white,
               ),
               displaySmall: GoogleFonts.questrial(
                 fontSize: 11,
-                color: Colors.black,
+                color: Colors.white,
               ),
               labelMedium: GoogleFonts.questrial(
                 fontSize: 17,
-                color: Colors.black,
+                color: Colors.white,
               ),
               titleSmall: GoogleFonts.questrial(
                 fontSize: 8,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
           ),
@@ -112,3 +129,4 @@ class _MainAppState extends State<MainApp> {
     );
   }
 }
+

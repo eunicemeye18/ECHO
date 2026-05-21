@@ -1,4 +1,4 @@
-import 'package:clone_whatsapp_base_code/widgets/custom_circle_progress_indicator.dart';
+import 'package:echo_work/widgets/custom_circle_progress_indicator.dart';
 import 'package:flutter/material.dart';
 
 class CustomOutlinedButton extends StatelessWidget {

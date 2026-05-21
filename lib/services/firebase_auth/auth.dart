@@ -1,4 +1,4 @@
-import 'package:clone_whatsapp_base_code/constants/api_config.dart';
+import 'package:echo_work/constants/api_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';

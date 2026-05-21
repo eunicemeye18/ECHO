@@ -1,12 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:clone_whatsapp_base_code/fonctionalites/messagerie.dart';
-import 'package:clone_whatsapp_base_code/services/firebase_auth/auth.dart';
+import 'package:echo_work/fonctionalites/messagerie.dart';
+import 'package:echo_work/services/firebase_auth/auth.dart';
 import 'package:flutter/material.dart';
 
 class Discussions extends StatefulWidget {
-  const Discussions({super.key, required this.email, required this.uid});
-  final String email; // email de l'interlocuteur (affiché dans l'appBar)
-  final String uid;   // uid de l'interlocuteur
+  const Discussions({
+    super.key,
+    required this.email,
+    required this.uid,
+    this.initials,
+    this.avatarColor,
+    this.isGroup = false,
+    this.groupId,
+  });
+
+  final String email;
+  final String uid;
+  final String? initials;
+  final Color? avatarColor;
+  final bool isGroup;
+  final String? groupId;
+
   @override
   State<Discussions> createState() => _DiscussionsState();
 }
@@ -16,7 +30,6 @@ class _DiscussionsState extends State<Discussions> {
   final ScrollController _scrollController = ScrollController();
 
   // chatId = les deux uids triés et joints par "_"
-  // Ex: "aaa_bbb" (toujours le même peu importe qui envoie)
   String get chatId {
     List ids = [Auth().currentUser!.uid, widget.uid];
     ids.sort();
@@ -26,7 +39,6 @@ class _DiscussionsState extends State<Discussions> {
   }
 
   // Stream qui écoute en temps réel les messages du chat
-  // orderBy timestamp = messages dans l'ordre chronologique
   Stream<QuerySnapshot> get messagesStream {
     print("🎧 Abonnement au stream pour chatId: $chatId");
     return FirebaseFirestore.instance
@@ -52,114 +64,244 @@ class _DiscussionsState extends State<Discussions> {
 
   @override
   Widget build(BuildContext context) {
-    // On récupère l'uid de l'user connecté une seule fois ici
     final currentUid = Auth().currentUser!.uid;
-    print("👤 currentUid dans build: $currentUid");
-    print("👤 receiverUid           : ${widget.uid}");
+    final String partnerName = widget.email.split('@')[0];
+    final String partnerInitials = widget.initials ??
+        (partnerName.isNotEmpty ? partnerName[0].toUpperCase() : "U");
+    final Color partnerColor = widget.avatarColor ?? const Color(0xFFE50914);
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.email)),
+      backgroundColor: Colors.black,
+      
+      // ─── PREMIUM CUSTOM APP BAR ───────────────────────────
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: partnerColor,
+              child: Text(
+                partnerInitials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    partnerName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  const Row(
+                    children: [
+                      Icon(Icons.fiber_manual_record, color: Colors.green, size: 8),
+                      SizedBox(width: 4),
+                      Text(
+                        "En ligne",
+                        style: TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.videocam_outlined, color: Colors.white, size: 22),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Appels vidéo indisponibles en mode démo")),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.phone_outlined, color: Colors.white, size: 22),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Appels vocaux indisponibles en mode démo")),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+
       body: Column(
         children: [
+          const Divider(color: Color(0xFF1E1E1E), height: 1),
 
           // ─── LISTE DES MESSAGES ───────────────────────────────
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: messagesStream,
               builder: (context, snapshot) {
-
-                // Log de l'état du stream à chaque rebuild
-                print("── StreamBuilder rebuild ──");
-                print("   connectionState : ${snapshot.connectionState}");
-                print("   hasData         : ${snapshot.hasData}");
-                print("   hasError        : ${snapshot.hasError}");
-                print("   error           : ${snapshot.error}");
-                print("   docs count      : ${snapshot.data?.docs.length}");
-
-                // Erreur Firestore (ex: permission denied)
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text(
-                      "Erreur:\n${snapshot.error}",
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Text(
+                        "Erreur:\n${snapshot.error}",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFFE50914)),
+                      ),
                     ),
                   );
                 }
 
-                // En attente de la première réponse Firestore
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                // Pas encore de données (stream ouvert mais vide)
-                if (!snapshot.hasData) {
-                  print("⚠️ snapshot ouvert mais pas de data");
-                  return const Center(child: Text("Chargement..."));
-                }
-
-                final docs = snapshot.data!.docs;
-                print("📋 Nombre de messages reçus: ${docs.length}");
-
-                // Aucun message dans ce chat
-                if (docs.isEmpty) {
                   return const Center(
-                    child: Text(
-                      "Aucun message\nCommencez la conversation !",
-                      textAlign: TextAlign.center,
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFE50914),
                     ),
                   );
                 }
 
-                // Scroll vers le bas quand les messages sont chargés
+                final docs = snapshot.data?.docs ?? [];
+
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0E0E0E),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF1E1E1E)),
+                            ),
+                            child: const Icon(
+                              Icons.chat_bubble_outline,
+                              color: Color(0xFFE50914),
+                              size: 36,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            "Sécurité de bout en bout",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Les messages sont chiffrés. Saisissez votre premier message ci-dessous pour démarrer la discussion.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                // Faire défiler automatiquement vers le bas après le chargement des messages
                 _scrollToBottom();
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
-
-                    // isMe = true si c'est moi qui ai envoyé ce message
                     final isMe = data["senderUid"] == currentUid;
 
-                    print("💬 Message[$index] | isMe:$isMe | ${data['message']}");
+                    // Formater l'heure du message
+                    String timeText = "";
+                    if (data["timestamp"] != null) {
+                      try {
+                        final DateTime date = (data["timestamp"] as Timestamp).toDate();
+                        timeText =
+                            "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+                      } catch (_) {
+                        timeText = "";
+                      }
+                    }
 
-                    return Align(
-                      // Mes messages à droite, les autres à gauche
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        // Largeur max = 70% de l'écran
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.7,
-                        ),
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          // Rouge pour moi, gris pour l'autre
-                          color: isMe ? Colors.red : Colors.grey[300],
-                          // Coins arrondis style WhatsApp
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(16),
-                            topRight: const Radius.circular(16),
-                            bottomLeft: isMe
-                                ? const Radius.circular(16)
-                                : const Radius.circular(0),
-                            bottomRight: isMe
-                                ? const Radius.circular(0)
-                                : const Radius.circular(16),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Align(
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
                           ),
-                        ),
-                        child: Text(
-                          data["message"] ?? "",
-                          style: TextStyle(
-                            color: isMe ? Colors.white : Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 11,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isMe ? const Color(0xFFE50914) : const Color(0xFF1E1E1E),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(20),
+                              topRight: const Radius.circular(20),
+                              bottomLeft: Radius.circular(isMe ? 20 : 4),
+                              bottomRight: Radius.circular(isMe ? 4 : 20),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                data["message"] ?? "",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  height: 1.3,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    timeText,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  if (isMe) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.done_all,
+                                      color: Colors.white70,
+                                      size: 13,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -170,59 +312,81 @@ class _DiscussionsState extends State<Discussions> {
             ),
           ),
 
-          // ─── CHAMP DE SAISIE ──────────────────────────────────
+          // ─── CHAMP DE SAISIE PREMIUM (PILL STYLE) ───────────────────────────
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(10),
+            color: Colors.black,
+            padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 20),
             child: Row(
               children: [
+                // Bouton Pièce Jointe (+)
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Ajout de fichiers bientôt disponible")),
+                    );
+                  },
+                  child: Container(
+                    height: 42,
+                    width: 42,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF1E1E1E),
+                    ),
+                    child: const Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Champ de texte
                 Expanded(
-                  child: TextField(
-                    controller: messageController,
-                    style: const TextStyle(color: Colors.black),
-                    maxLines: null, // permet les messages sur plusieurs lignes
-                    decoration: InputDecoration(
-                      hintText: "Nouveau Message",
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E0E0E),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: const Color(0xFF1E1E1E), width: 1.2),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      controller: messageController,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      maxLines: 1,
+                      decoration: InputDecoration(
+                        hintText: "Nouveau Message...",
+                        hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
 
-                // Bouton envoyer
+                // Bouton Envoyer
                 GestureDetector(
                   onTap: () {
-                    print("🖱️ Bouton envoyer appuyé");
                     final text = messageController.text.trim();
-
-                    // On n'envoie pas si le champ est vide
                     if (text.isNotEmpty) {
                       Messagerie().sendMessage(currentUid, widget.uid, text);
                       messageController.clear();
-                    } else {
-                      print("⚠️ Message vide, envoi annulé");
+                      _scrollToBottom();
                     }
                   },
                   child: Container(
-                    height: 48,
-                    width: 48,
+                    height: 42,
+                    width: 42,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.red,
+                      color: Color(0xFFE50914),
                     ),
                     child: const Icon(
-                      Icons.send,
+                      Icons.send_rounded,
                       color: Colors.white,
-                      size: 20,
+                      size: 18,
                     ),
                   ),
                 ),

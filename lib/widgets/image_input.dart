@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:clone_whatsapp_base_code/widgets/confirm_dialog_widget.dart';
+import 'package:echo_work/widgets/confirm_dialog_widget.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';

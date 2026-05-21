@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:clone_whatsapp_base_code/widgets/custom_circle_progress_indicator.dart';
+import 'package:echo_work/widgets/custom_circle_progress_indicator.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

@@ -1,5 +1,5 @@
-import 'package:clone_whatsapp_base_code/constants/const.dart';
-import 'package:clone_whatsapp_base_code/widgets/custom_circle_progress_indicator.dart';
+import 'package:echo_work/constants/const.dart';
+import 'package:echo_work/widgets/custom_circle_progress_indicator.dart';
 import 'package:flutter/material.dart';
 
 class ConfirmDialogWidget extends StatefulWidget {

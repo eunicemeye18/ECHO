@@ -1,5 +1,5 @@
-import 'package:clone_whatsapp_base_code/cubits/login/login_state.dart';
-import 'package:clone_whatsapp_base_code/repositories/api_repository/auth_repository.dart';
+import 'package:echo_work/cubits/login/login_state.dart';
+import 'package:echo_work/repositories/api_repository/auth_repository.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class LoginCubit extends Cubit<LoginState> {
