@@ -3,7 +3,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 /// Résultat retourné par l'analyse IA.
-/// Si [rappelCree] est true, [texteExtrait], [motCle] et [typeRappel] sont renseignés.
 class IaAnalyseResult {
   final bool rappelCree;
   final String? motCle;
@@ -25,21 +24,22 @@ class IaAnalyseResult {
 class Messagerie {
   FirebaseFirestore db = FirebaseFirestore.instance;
 
-  // URL du backend déployé sur Render.
-  // Remplacer par l'URL réelle après déploiement.
+  /// URL du backend FastAPI déployé sur Render.
+  /// ⚠️  Remplacer par l'URL réelle après déploiement Render.
+  /// Format : https://<nom-service>.onrender.com
   static const String _apiUrl = "https://echo-work-ai.onrender.com";
 
   final Dio _dio = Dio(
     BaseOptions(
-      connectTimeout: const Duration(seconds: 8),
-      receiveTimeout: const Duration(seconds: 10),
+      // Render free tier peut avoir un cold start de ~15s
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 15),
       headers: {"Content-Type": "application/json"},
     ),
   );
 
-  /// Envoie un message et retourne le résultat de l'analyse IA.
-  /// L'envoi Firestore est immédiat ; l'analyse IA est lancée en parallèle
-  /// et son résultat est retourné pour que l'UI puisse réagir.
+  /// Envoie un message dans Firestore et retourne le résultat de l'analyse IA.
+  /// L'envoi Firestore est prioritaire et non bloqué par l'IA.
   Future<IaAnalyseResult> sendMessage(
     String currentUid,
     String receiverUid,
@@ -51,7 +51,7 @@ class Messagerie {
     bool isGroup = false,
   }) async {
     // ── 1. Calculer le chatId ──────────────────────────────────────────────
-    String chatId;
+    final String chatId;
     if (isGroup) {
       chatId = receiverUid;
     } else {
@@ -59,7 +59,7 @@ class Messagerie {
       chatId = ids.join("_");
     }
 
-    // ── 2. Construire le payload du message ───────────────────────────────
+    // ── 2. Construire le payload ───────────────────────────────────────────
     final Map<String, dynamic> messageData = {
       "senderUid": currentUid,
       "receiverUid": receiverUid,
@@ -72,25 +72,25 @@ class Messagerie {
     if (fileName != null) messageData["fileName"] = fileName;
     if (fileSize != null) messageData["fileSize"] = fileSize;
 
-    // ── 3. Sauvegarder dans Firestore (prioritaire, non bloqué par l'IA) ──
+    // ── 3. Sauvegarder dans Firestore (immédiat) ───────────────────────────
     await db
         .collection("Chats")
         .doc(chatId)
         .collection(chatId)
         .add(messageData);
 
-    // ── 4. Mettre à jour le lastMessage du groupe si applicable ───────────
+    // ── 4. Mettre à jour le groupe si applicable ───────────────────────────
     if (isGroup) {
       _updateGroupLastMessage(currentUid, chatId, message, type, fileName);
     }
 
-    // ── 5. Analyse IA (uniquement messages texte 1-to-1) ──────────────────
+    // ── 5. Analyse IA (texte 1-to-1 uniquement) ───────────────────────────
     if (type != "text" || isGroup) return IaAnalyseResult.none();
 
     return _analyserAvecIA(message, currentUid, chatId);
   }
 
-  /// Appel HTTP vers le backend FastAPI — non bloquant pour l'UX.
+  /// Appel HTTP vers le backend FastAPI.
   Future<IaAnalyseResult> _analyserAvecIA(
     String message,
     String auteur,
@@ -113,7 +113,7 @@ class Messagerie {
       final data = response.data as Map<String, dynamic>;
       final bool rappelCree = data["rappel_cree"] == true;
 
-      debugPrint("🤖 IA résultat: $data");
+      debugPrint("🤖 IA: $data");
 
       if (!rappelCree) return IaAnalyseResult.none();
 
@@ -125,15 +125,15 @@ class Messagerie {
         whenText: data["when_text"] as String?,
       );
     } on DioException catch (e) {
-      debugPrint("❌ Erreur IA (réseau): ${e.message}");
+      debugPrint("❌ IA réseau: ${e.message}");
       return IaAnalyseResult.none();
     } catch (e) {
-      debugPrint("❌ Erreur IA: $e");
+      debugPrint("❌ IA erreur: $e");
       return IaAnalyseResult.none();
     }
   }
 
-  /// Met à jour le dernier message affiché dans la liste des groupes.
+  /// Met à jour le dernier message du groupe.
   Future<void> _updateGroupLastMessage(
     String currentUid,
     String chatId,
@@ -150,18 +150,15 @@ class Messagerie {
           : "Quelqu'un";
 
       String displayMsg = message;
-      if (type == "image") {
-        displayMsg = "📷 Photo";
-      } else if (type == "file") {
-        displayMsg = "📄 Fichier: $fileName";
-      }
+      if (type == "image") displayMsg = "📷 Photo";
+      if (type == "file") displayMsg = "📄 Fichier: $fileName";
 
       await db.collection("groups").doc(chatId).update({
         "lastMessage": "$authorName: $displayMsg",
         "lastMessageTime": Timestamp.now(),
       });
     } catch (e) {
-      debugPrint("❌ Erreur mise à jour groupe: $e");
+      debugPrint("❌ Groupe update: $e");
     }
   }
 }
