@@ -1,6 +1,7 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 /// Résultat retourné par l'analyse IA.
 class IaAnalyseResult {
@@ -24,22 +25,52 @@ class IaAnalyseResult {
 class Messagerie {
   FirebaseFirestore db = FirebaseFirestore.instance;
 
-  /// URL du backend FastAPI déployé sur Vercel.
-  /// Après déploiement, remplacer par l'URL réelle.
-  /// Ex: "https://echo-xxxx.vercel.app"
-  static const String _apiUrl = "https://echo-work-ai.vercel.app";
-
-  final Dio _dio = Dio(
-    BaseOptions(
-      // Render free tier peut avoir un cold start de ~15s
-      connectTimeout: const Duration(seconds: 20),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {"Content-Type": "application/json"},
-    ),
+  // Clé API Gemini — passée via --dart-define à la compilation
+  // ou définie ici directement pour le déploiement CI/CD
+  static const String _geminiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
   );
 
+  // Modèle Gemini initialisé une seule fois (singleton)
+  static GenerativeModel? _model;
+
+  static GenerativeModel? _getModel() {
+    if (_model != null) return _model;
+    final key = _geminiKey.isNotEmpty
+        ? _geminiKey
+        : 'AIzaSyBSDRMflHAG2nXlkL8qqBofsMeEazYkjLE';
+    _model = GenerativeModel(
+      model: 'gemini-2.0-flash',
+      apiKey: key,
+      generationConfig: GenerationConfig(
+        temperature: 0.1,
+        maxOutputTokens: 200,
+        responseMimeType: 'application/json',
+      ),
+    );
+    return _model;
+  }
+
+  static const String _systemPrompt = '''
+Tu es un assistant intégré dans l'application de messagerie professionnelle ECHO WORK.
+
+Analyse ce message et détecte s'il contient :
+1. Une PROMESSE : engagement explicite ("je vais envoyer", "je ferai", "je t'envoie", "je m'en occupe", "je te rappelle", "je prépare", "je gère", "je livre")
+2. Un RENDEZ-VOUS : date/heure/lieu futur ("on se voit demain", "réunion lundi", "rendez-vous à 14h", "meeting à 10h", "je serai là vendredi")
+
+Réponds UNIQUEMENT avec ce JSON (rien d'autre) :
+- Si engagement détecté : {"rappel_cree": true, "mot_cle": "mot court", "texte_extrait": "reformulation claire", "type_rappel": "promesse" ou "rendez-vous", "when_text": "indication temporelle ou null"}
+- Sinon : {"rappel_cree": false}
+
+Exemples :
+- "Je t'envoie le rapport demain" → {"rappel_cree": true, "mot_cle": "Rapport", "texte_extrait": "Envoyer le rapport demain", "type_rappel": "promesse", "when_text": "Demain"}
+- "Réunion vendredi à 14h" → {"rappel_cree": true, "mot_cle": "Réunion", "texte_extrait": "Réunion vendredi à 14h", "type_rappel": "rendez-vous", "when_text": "Vendredi à 14h"}
+- "Ok merci" → {"rappel_cree": false}
+- "👍" → {"rappel_cree": false}
+''';
+
   /// Envoie un message dans Firestore et retourne le résultat de l'analyse IA.
-  /// L'envoi Firestore est prioritaire et non bloqué par l'IA.
   Future<IaAnalyseResult> sendMessage(
     String currentUid,
     String receiverUid,
@@ -72,7 +103,7 @@ class Messagerie {
     if (fileName != null) messageData["fileName"] = fileName;
     if (fileSize != null) messageData["fileSize"] = fileSize;
 
-    // ── 3. Sauvegarder dans Firestore (immédiat) ───────────────────────────
+    // ── 3. Sauvegarder dans Firestore (immédiat, prioritaire) ──────────────
     await db
         .collection("Chats")
         .doc(chatId)
@@ -87,48 +118,43 @@ class Messagerie {
     // ── 5. Analyse IA (texte 1-to-1 uniquement) ───────────────────────────
     if (type != "text" || isGroup) return IaAnalyseResult.none();
 
-    return _analyserAvecIA(message, currentUid, chatId);
+    return _analyserAvecGemini(message);
   }
 
-  /// Appel HTTP vers le backend FastAPI.
-  Future<IaAnalyseResult> _analyserAvecIA(
-    String message,
-    String auteur,
-    String conversationId,
-  ) async {
+  /// Appel direct à l'API Gemini depuis Flutter.
+  Future<IaAnalyseResult> _analyserAvecGemini(String message) async {
+    // Ignorer les messages trop courts ou composés d'emojis
+    if (message.trim().length < 5) return IaAnalyseResult.none();
+
+    final model = _getModel();
+    if (model == null) return IaAnalyseResult.none();
+
     try {
-      final response = await _dio.post(
-        "$_apiUrl/analyser",
-        data: {
-          "message": message,
-          "auteur": auteur,
-          "conversation_id": conversationId,
-        },
-      );
+      final prompt = '$_systemPrompt\nMessage à analyser : "$message"';
+      final response = await model.generateContent([Content.text(prompt)]);
+      final raw = response.text?.trim() ?? '';
 
-      if (response.statusCode != 200 || response.data == null) {
-        return IaAnalyseResult.none();
-      }
+      if (raw.isEmpty) return IaAnalyseResult.none();
 
-      final data = response.data as Map<String, dynamic>;
-      final bool rappelCree = data["rappel_cree"] == true;
+      debugPrint('🤖 Gemini raw: $raw');
 
-      debugPrint("🤖 IA: $data");
+      // Parser le JSON retourné
+      final data = jsonDecode(raw) as Map<String, dynamic>;
 
-      if (!rappelCree) return IaAnalyseResult.none();
+      if (data['rappel_cree'] != true) return IaAnalyseResult.none();
 
       return IaAnalyseResult(
         rappelCree: true,
-        motCle: data["mot_cle"] as String?,
-        texteExtrait: data["texte_extrait"] as String?,
-        typeRappel: data["type_rappel"] as String?,
-        whenText: data["when_text"] as String?,
+        motCle: data['mot_cle'] as String?,
+        texteExtrait: data['texte_extrait'] as String?,
+        typeRappel: data['type_rappel'] as String?,
+        whenText: data['when_text'] as String?,
       );
-    } on DioException catch (e) {
-      debugPrint("❌ IA réseau: ${e.message}");
+    } on GenerativeAIException catch (e) {
+      debugPrint('❌ Gemini API error: ${e.message}');
       return IaAnalyseResult.none();
     } catch (e) {
-      debugPrint("❌ IA erreur: $e");
+      debugPrint('❌ IA erreur: $e');
       return IaAnalyseResult.none();
     }
   }

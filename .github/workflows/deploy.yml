@@ -38,7 +38,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Web
-        run: flutter build web --release --base-href "/ECHO/" --no-wasm-dry-run
+        run: flutter build web --release --base-href "/ECHO/" --no-wasm-dry-run --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
 
       - name: Add .nojekyll
         run: touch build/web/.nojekyll
@@ -81,7 +81,7 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
